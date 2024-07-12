@@ -21,12 +21,13 @@ except FileNotFoundError:
 
 # 定义config类用于存储和管理配置信息
 class Config:
-    def __init__(self, client_id, client_secret, access_token, share_floder, share_pwd):
+    def __init__(self, client_id, client_secret, access_token, share_father_floder, share_pwd,share_days):
         self.client_id = client_id
         self.client_secret = client_secret
         self.access_token = access_token
-        self.share_floder = share_floder
+        self.share_father_floder = share_father_floder
         self.share_pwd = share_pwd
+        self.share_days = share_days
 
     def save(self):
         with open('./config.json', 'w', encoding='utf-8') as json_file:
@@ -34,7 +35,8 @@ class Config:
                 "client_id": self.client_id,
                 "client_secret": self.client_secret,
                 "access_token": self.access_token,
-                "share_floder": self.share_floder,
+                "share_father_floder": self.share_father_floder,
+                "share_days": self.share_days,
                 "default_pwd": self.share_pwd
             }, json_file, ensure_ascii=False, indent=4)
 
@@ -43,8 +45,9 @@ cfg = Config(
     client_id=file_content["client_id"],
     client_secret=file_content["client_secret"],
     access_token=file_content["access_token"],
-    share_floder=file_content["share_floder"],
-    share_pwd=file_content["default_pwd"]
+    share_father_floder=file_content["share_father_floder"],
+    share_pwd=file_content["default_pwd"],
+    share_days=file_content["share_days"]
 )
 
 # 设置请求头信息，包含Authorization和Platform
@@ -62,8 +65,8 @@ def get_access_token():
     return data.get("data")
 
 # 定义获取文件列表的函数
-def get_file_list():
-    data = {"limit": "100", "parentFileId": cfg.share_floder}
+def get_file_list(floder_id):
+    data = {"limit": "100", "parentFileId": floder_id}
     response = requests.get(url=f"{api_url}/api/v2/file/list", data=data, headers=header)
     if response.status_code != 200:
         raise Exception("获取文件列表失败")
@@ -71,25 +74,35 @@ def get_file_list():
 
 # 定义分享文件的函数
 def share(fileId, filename):
-    data = {"shareName": f"{filename}", "shareExpire": "0", "fileIDList": str(fileId), "sharePwd": cfg.share_pwd}
+    data = {"shareName": f"{filename}", "shareExpire": cfg.share_days, "fileIDList": str(fileId), "sharePwd": cfg.share_pwd}
     response = requests.post(url=f"{api_url}/api/v1/share/create", data=data, headers=header)
     if response.status_code != 200:
         raise Exception("分享文件失败")
     return json.loads(response.text).get("data")
 
 # 定义分享所有文件的函数
-def share_all():
-    files = get_file_list()
+def share_floder(floder_id):
+    files = get_file_list(floder_id)
     for i in files.get("fileList"):
         fileName = i.get("filename")
         fileId = i.get("fileId")
-        if shared.get(fileName) is None:
-            key = str(share(fileId, fileName).get("shareKey", "22"))
-            shared[fileName] = f"https://www.123pan.com/s/{key}"
+        if i.get("type") == 1:
+            share_floder(fileId)
+            print("floder",fileId)
+            continue
+        else:
+            if shared.get(fileName) is None:
+                key = str(share(fileId, fileName).get("shareKey", "22"))
+                shared[fileName] = f"https://www.123pan.com/s/{key}"
+                print("file",fileId)
+
     with open('./shared.json', 'w', encoding='utf-8') as json_file:
         json.dump(shared, json_file, ensure_ascii=False, indent=4)
 
+def share_all():
+
+    pass
 # 获取访问令牌
 get_access_token()
 # 分享所有文件
-share_all()
+share_floder(floder_id=cfg.share_father_floder)

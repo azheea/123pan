@@ -2,6 +2,7 @@
     "client_id": "",
     "client_secret": "",
     "access_token": "",
-    "share_floder": "",
+    "share_father_floder": "0",
+    "share_days": "0",
     "default_pwd": "azhe"
 }
